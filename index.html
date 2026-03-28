@@ -1,1 +1,361 @@
-here we go
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcadian Tarock</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { margin-bottom: 5px; }
+        #status { margin-bottom: 20px; font-weight: bold; font-size: 1.2em; color: #f1c40f; }
+        
+        .game-area {
+            display: flex;
+            flex-direction: row;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .hand {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 400px;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 5px;
+            background-color: #34495e;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .cell {
+            width: 100px;
+            height: 100px;
+            background-color: #7f8c8d;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.8em;
+            border: 2px solid transparent;
+        }
+
+        .cell:hover { background-color: #95a5a6; }
+
+        .card {
+            width: 100px;
+            height: 60px;
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.75em;
+            border: 3px solid transparent;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        .card.p1 { border-color: #3498db; }
+        .card.p2 { border-color: #e74c3c; }
+        .card.selected { border-color: #f1c40f; background-color: #fffacd; }
+
+        .stats {
+            display: flex;
+            gap: 10px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        
+        .atk { color: #c0392b; }
+        .def { color: #2980b9; }
+    </style>
+</head>
+<body>
+
+    <h1>Arcadian Tarock</h1>
+    <div id="status">Loading Game...</div>
+
+    <div class="game-area">
+        <div class="hand" id="p1-hand"></div>
+        <div class="board" id="board"></div>
+        <div class="hand" id="p2-hand"></div>
+    </div>
+
+<script>
+// --- DATA MODEL ---
+const FULL_CARD_POOL = [
+    {id: 1, name: "TRAINING DUMMY", attack: 1, defense: 6, special: [], ability: "Defence +1"},
+    {id: 2, name: "ENGINEER", attack: 4, defense: 3, special: [], ability: "Defence +1"},
+    {id: 3, name: "TETRAODD", attack: 3, defense: 4, special: [], ability: "Lucky Attack"},
+    {id: 4, name: "ITICA", attack: 2, defense: 4, special: ["Left"], ability: "Attack +1"},
+    {id: 5, name: "SCARABARA", attack: 5, defense: 3, special: [], ability: "Defence +1"},
+    {id: 6, name: "MYSTERIOUS DAGGER", attack: 5, defense: 5, special: [], ability: "Special Up"},
+    {id: 7, name: "IRONTALON", attack: 4, defense: 6, special: [], ability: "Lucky Attack"},
+    {id: 8, name: "DARK TROOPERS", attack: 5, defense: 4, special: ["Right"], ability: "Piercing Attack"},
+    {id: 9, name: "SPIDERBOT", attack: 3, defense: 7, special: [], ability: "Last Attack +1"},
+    {id: 10, name: "KAKTOS", attack: 5, defense: 4, special: ["Up"], ability: "First Defence +1"},
+    {id: 11, name: "GILLMAN WARRIORS", attack: 4, defense: 7, special: [], ability: "Attack +1"},
+    {id: 12, name: "GALACTOSS", attack: 6, defense: 4, special: ["Down"], ability: "Defence +1"},
+    {id: 13, name: "ARCADIAN SOLDIER", attack: 5, defense: 6, special: [], ability: "Attack +1"},
+    {id: 14, name: "OWRU BANDITS", attack: 6, defense: 5, special: [], ability: "First Defence +1"},
+    {id: 15, name: "SECURITY DRONE", attack: 7, defense: 4, special: [], ability: "Last Attack +1"},
+    {id: 16, name: "FLUTE", attack: 4, defense: 8, special: [], ability: "Attack +1"},
+    {id: 17, name: "DROPSHIP", attack: 7, defense: 4, special: ["Down"], ability: "Defence +1"},
+    {id: 18, name: "KNIGHT", attack: 5, defense: 7, special: [], ability: "Last Attack +1"},
+    {id: 19, name: "BOT WARRIORS", attack: 7, defense: 5, special: [], ability: "Lucky Attack"},
+    {id: 20, name: "CEPEDE", attack: 6, defense: 6, special: [], ability: "Defence +1"},
+    {id: 21, name: "GHOST", attack: 6, defense: 7, special: [], ability: "Last Attack +1"},
+    {id: 22, name: "CHIEF", attack: 9, defense: 4, special: [], ability: "Defence +1"},
+    {id: 23, name: "PROTOTYPE SPIDERBOT", attack: 5, defense: 7, special: ["Right"], ability: "Attack +1"},
+    {id: 24, name: "CASTER GUN", attack: 8, defense: 4, special: ["Up"], ability: "Piercing Attack"},
+    {id: 25, name: "COMMANDER", attack: 7, defense: 6, special: [], ability: "Attack +1"},
+    {id: 26, name: "PARADIGM HOURGLASS", attack: 5, defense: 9, special: [], ability: "Last Attack +1"},
+    {id: 27, name: "SHIELD OF CHRONOS", attack: 3, defense: 9, special: ["Up", "Down"], ability: "First Defence +1"},
+    {id: 28, name: "STEELSCALE", attack: 8, defense: 6, special: [], ability: "Defence +1"},
+    {id: 29, name: "GUARDIAN", attack: 7, defense: 7, special: [], ability: "Attack +1"},
+    {id: 30, name: "PRINCESS FIN", attack: 6, defense: 8, special: [], ability: "Special Left"},
+    {id: 31, name: "YELLOW BIRD", attack: 9, defense: 6, special: ["Right"], ability: "First Defence +1"},
+    {id: 32, name: "DARK APOSTLE", attack: 8, defense: 7, special: ["Left"], ability: "Last Attack +1"},
+    {id: 33, name: "YURMALA TURTLE", attack: 6, defense: 10, special: [], ability: "Attack +1"},
+    {id: 34, name: "THUNDERSTONE", attack: 6, defense: 9, special: ["Right"], ability: "Lucky Attack"},
+    {id: 35, name: "FIREBIRD", attack: 9, defense: 6, special: ["Down"], ability: "Defence +1"},
+    {id: 36, name: "GEN", attack: 7, defense: 9, special: ["Left"], ability: "First Defence +1"},
+    {id: 37, name: "ASTROBLADE", attack: 6, defense: 9, special: ["Up"], ability: "Piercing Attack"},
+    {id: 38, name: "THE SHADOW", attack: 6, defense: 9, special: ["Down"], ability: "Attack +1"},
+    {id: 39, name: "MASTER MAYFAIR", attack: 8, defense: 7, special: ["Up", "Right"], ability: "First Defence +1"},
+    {id: 40, name: "SEALURK", attack: 9, defense: 5, special: ["Left", "Down"], ability: "Attack +1"},
+    {id: 41, name: "DARK CHARIOT", attack: 9, defense: 5, special: ["Up", "Down"], ability: "Defence +1"},
+    {id: 42, name: "THE GREAT CHRONICLER", attack: 7, defense: 9, special: ["Left", "Right"], ability: "Lucky Attack"},
+    {id: 43, name: "HERO", attack: 9, defense: 7, special: ["Right", "Down"], ability: "Last Attack +1"},
+    {id: 44, name: "EVERTURSO", attack: 9, defense: 7, special: ["Left", "Up"], ability: "Defence +1"},
+    {id: 45, name: "ARCHIMEDES", attack: 7, defense: 9, special: ["Left", "Up", "Right"], ability: "Lucky Attack"},
+    {id: 46, name: "MESMEROTH", attack: 9, defense: 7, special: ["Up", "Right", "Down"], ability: "Lucky Attack"},
+    {id: 47, name: "TRIN", attack: 8, defense: 8, special: ["Down", "Left", "Up"], ability: "Lucky Attack"},
+    {id: 48, name: "OCEANHORN", attack: 10, defense: 6, special: ["Right", "Down", "Left"], ability: "First Defence +1"},
+    {id: 49, name: "TRILOTH", attack: 10, defense: 5, special: ["Up", "Right", "Down", "Left"], ability: "Defence +1"},
+    {id: 50, name: "SACRED EMBLEMS", attack: 5, defense: 10, special: ["Up", "Right", "Down", "Left"], ability: "Piercing Attack"}
+];
+
+// --- GAME LOGIC ---
+class TarockCard {
+    constructor(data) {
+        this.id = data.id;
+        this.name = data.name;
+        this.baseAttack = data.attack;
+        this.baseDefense = data.defense;
+        this.special = [...data.special];
+        this.ability = data.ability;
+        this.owner = null;
+        this.firstDefenseActive = (this.ability === "First Defence +1");
+
+        if (this.ability === "Special Left") this.special.push("Left");
+        if (this.ability === "Special Up") this.special.push("Up");
+    }
+
+    getAttack(isLastRound) {
+        let atk = this.baseAttack;
+        if (this.ability === "Attack +1") atk += 1;
+        if (this.ability === "Last Attack +1" && isLastRound) atk += 1;
+        return atk;
+    }
+
+    getDefense() {
+        let dfn = this.baseDefense;
+        if (this.ability === "Defence +1") dfn += 1;
+        if (this.firstDefenseActive) dfn += 1;
+        return dfn;
+    }
+
+    receiveAttack() {
+        if (this.firstDefenseActive) this.firstDefenseActive = false;
+    }
+}
+
+class TarockGame {
+    constructor() {
+        // Shuffle and deal
+        let shuffled = [...FULL_CARD_POOL].sort(() => 0.5 - Math.random());
+        this.players = {
+            1: { name: "Player 1 (Blue)", hand: shuffled.slice(0, 5).map(c => new TarockCard(c)) },
+            2: { name: "Player 2 (Red)", hand: shuffled.slice(5, 10).map(c => new TarockCard(c)) }
+        };
+        this.board = Array(3).fill(null).map(() => Array(3).fill(null));
+        this.turn = 1;
+        this.currentPlayer = 1;
+        this.gameOver = false;
+    }
+
+    playCard(playerIndex, handIndex, x, y) {
+        if (this.board[y][x] !== null || this.gameOver) return false;
+
+        let card = this.players[playerIndex].hand.splice(handIndex, 1)[0];
+        card.owner = playerIndex;
+        this.board[y][x] = card;
+
+        let isLastRound = (this.turn >= 8);
+        this.resolveCombat(x, y, card, isLastRound);
+
+        this.turn++;
+        this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
+        
+        if (this.turn > 9) this.gameOver = true;
+        return true;
+    }
+
+    resolveCombat(x, y, attacker, isLastRound) {
+        const directions = {
+            "Up": {dx: 0, dy: -1, defDir: "Down"},
+            "Down": {dx: 0, dy: 1, defDir: "Up"},
+            "Left": {dx: -1, dy: 0, defDir: "Right"},
+            "Right": {dx: 1, dy: 0, defDir: "Left"}
+        };
+
+        for (const [atkDir, v] of Object.entries(directions)) {
+            let nx = x + v.dx, ny = y + v.dy;
+            if (nx >= 0 && nx < 3 && ny >= 0 && ny < 3) {
+                let defender = this.board[ny][nx];
+                if (defender && defender.owner !== attacker.owner) {
+                    this.executeCombat(attacker, defender, atkDir, v.defDir, isLastRound);
+                }
+            }
+        }
+    }
+
+    executeCombat(attacker, defender, atkDir, defDir, isLastRound) {
+        let atkSpecial = attacker.special.includes(atkDir);
+        let defSpecial = defender.special.includes(defDir);
+        let piercing = (attacker.ability === "Piercing Attack");
+        let lucky = (attacker.ability === "Lucky Attack");
+
+        if (piercing) defSpecial = false;
+
+        let capture = false;
+        if (atkSpecial && defSpecial) {
+            capture = lucky ? true : false;
+        } else if (atkSpecial && !defSpecial) {
+            capture = true;
+        } else if (!atkSpecial && defSpecial) {
+            capture = false;
+        } else {
+            let atkVal = attacker.getAttack(isLastRound);
+            let defVal = defender.getDefense();
+            if (atkVal > defVal) capture = true;
+            else if (atkVal === defVal) capture = lucky ? true : false;
+        }
+
+        defender.receiveAttack();
+        if (capture) defender.owner = attacker.owner;
+    }
+
+    getScore() {
+        let p1 = 0, p2 = 0;
+        for (let y = 0; y < 3; y++) {
+            for (let x = 0; x < 3; x++) {
+                if (this.board[y][x]?.owner === 1) p1++;
+                if (this.board[y][x]?.owner === 2) p2++;
+            }
+        }
+        return { 1: p1, 2: p2 };
+    }
+}
+
+// --- UI LOGIC ---
+let game = new TarockGame();
+let selectedCardIndex = null;
+
+function render() {
+    // Update Status
+    const statusEl = document.getElementById("status");
+    if (game.gameOver) {
+        let scores = game.getScore();
+        if (scores[1] > scores[2]) statusEl.innerText = "Game Over! Player 1 Wins!";
+        else if (scores[2] > scores[1]) statusEl.innerText = "Game Over! Player 2 Wins!";
+        else statusEl.innerText = "Game Over! It's a Tie!";
+    } else {
+        statusEl.innerText = `${game.players[game.currentPlayer].name}'s Turn (Select a card, then click the board)`;
+        statusEl.style.color = game.currentPlayer === 1 ? "#3498db" : "#e74c3c";
+    }
+
+    // Render Hands
+    const renderHand = (playerId, elementId) => {
+        const handEl = document.getElementById(elementId);
+        handEl.innerHTML = `<h3>Player ${playerId}</h3>`;
+        game.players[playerId].hand.forEach((card, index) => {
+            let cardEl = document.createElement("div");
+            cardEl.className = `card p${playerId} ${selectedCardIndex === index && game.currentPlayer === playerId ? 'selected' : ''}`;
+            cardEl.innerHTML = `
+                <b>${card.name}</b>
+                <div class="stats"><span class="atk">⚔ ${card.baseAttack}</span> <span class="def">🛡 ${card.baseDefense}</span></div>
+            `;
+            if (game.currentPlayer === playerId && !game.gameOver) {
+                cardEl.onclick = () => {
+                    selectedCardIndex = index;
+                    render();
+                };
+            }
+            handEl.appendChild(cardEl);
+        });
+    };
+
+    renderHand(1, "p1-hand");
+    renderHand(2, "p2-hand");
+
+    // Render Board
+    const boardEl = document.getElementById("board");
+    boardEl.innerHTML = "";
+    for (let y = 0; y < 3; y++) {
+        for (let x = 0; x < 3; x++) {
+            let cellEl = document.createElement("div");
+            cellEl.className = "cell";
+            
+            let card = game.board[y][x];
+            if (card) {
+                cellEl.classList.add(`p${card.owner}`, 'card');
+                cellEl.innerHTML = `
+                    <b>${card.name}</b>
+                    <div class="stats"><span class="atk">⚔ ${card.getAttack(game.turn >= 8)}</span> <span class="def">🛡 ${card.getDefense()}</span></div>
+                `;
+            } else {
+                cellEl.onclick = () => {
+                    if (selectedCardIndex !== null && !game.gameOver) {
+                        if (game.playCard(game.currentPlayer, selectedCardIndex, x, y)) {
+                            selectedCardIndex = null;
+                            render();
+                        }
+                    }
+                };
+            }
+            boardEl.appendChild(cellEl);
+        }
+    }
+}
+
+// Start game
+render();
+</script>
+
+</body>
+</html>
+
